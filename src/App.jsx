@@ -1,11 +1,10 @@
 import React, { useState } from "react";
 import "./App.css";
-
 // Import the arrow icon for the send button
 import arrowIcon from "./assets/arrow.png";
 
 function App() {
-  // Whether we’ve set the job title yet
+  // Whether we've set the job title yet
   const [jobTitle, setJobTitle] = useState("");
   const [isJobTitleSet, setIsJobTitleSet] = useState(false);
 
@@ -23,7 +22,6 @@ function App() {
   // Send logic
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
-
     const userText = inputValue.trim();
 
     // 1) Display user's message
@@ -34,7 +32,6 @@ function App() {
     if (!isJobTitleSet) {
       setJobTitle(userText);
       setIsJobTitleSet(true);
-
       // Bot confirms success
       setMessages((prev) => [
         ...prev,
@@ -48,12 +45,12 @@ function App() {
 
     // 3) Otherwise, we have a job title, do a normal chat request
     try {
-      const response = await fetch("/api/v1/chat", {
+      const response = await fetch("https://capps-backend-aiconnect.niceocean-c2d9e758.eastus.azurecontainerapps.io/api/v1/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           // Replace with your real API key, if needed
-          "X-API-KEY": "YOUR_API_KEY_HERE"
+          "X-API-KEY": "f3282794f91208416abfb687683a6de9416217e0d6defeb20e19cb15eb00619f"
         },
         body: JSON.stringify({
           messages: [
@@ -71,27 +68,55 @@ function App() {
       });
 
       const data = await response.json();
-
       // The backend might return { followups, message, role, sources, session_state }
       const mainAnswer = data.message || "(No main message)";
-      const followups = Array.isArray(data.followups)
-        ? data.followups.join(" | ")
-        : "";
-      const sources = Array.isArray(data.sources) ? data.sources.join(", ") : "";
 
-      // Combine them into one text bubble for demo
-      let combinedReply = mainAnswer;
-      if (sources) {
-        combinedReply += `\n\nSources: ${sources}`;
-      }
-      if (followups) {
-        combinedReply += `\n\nFollowups: ${followups}`;
+      // Format followups as separate items rather than joined with |
+      let followupsSection = "";
+      if (Array.isArray(data.followups) && data.followups.length > 0) {
+        followupsSection = (
+          <div className="followups-section">
+            <p className="followups-title">You might also want to ask:</p>
+            <ul className="followups-list">
+              {data.followups.map((item, index) => (
+                <li key={index} className="followup-item">{item}</li>
+              ))}
+            </ul>
+          </div>
+        );
       }
 
-      // Display bot's answer
+      // Format sources as hyperlinks
+      let sourcesSection = "";
+      if (Array.isArray(data.sources) && data.sources.length > 0) {
+        sourcesSection = (
+          <div className="sources-section">
+            <p className="sources-title">Sources:</p>
+            <ul className="sources-list">
+              {data.sources.map((source, index) => {
+                const url = source.startsWith('http://') || source.startsWith('https://')
+                  ? source
+                  : `https://${source}`;
+                return (
+                  <li key={index} className="source-item">
+                   <a href={url} target="_blank" rel="noopener noreferrer">{source}</a>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        );
+      }
+
+      // Display bot's answer with formatted components
       setMessages((prev) => [
         ...prev,
-        { sender: "bot", text: combinedReply }
+        {
+          sender: "bot",
+          text: mainAnswer,
+          followups: data.followups || [],
+          sources: data.sources || []
+        }
       ]);
     } catch (error) {
       console.error("Error: ", error);
@@ -107,6 +132,46 @@ function App() {
     if (e.key === "Enter") {
       handleSendMessage();
     }
+  };
+
+  // Function to render message content with potential HTML
+  const renderMessageContent = (message) => {
+    return (
+      <>
+        <div className="message-text">{message.text}</div>
+
+        {/* Render sources if they exist */}
+        {message.sources && message.sources.length > 0 && (
+          <div className="sources-section">
+            <p className="sources-title">Sources:</p>
+            <ul className="sources-list">
+              {message.sources.map((source, index) => {
+                const url = source.startsWith('http://') || source.startsWith('https://')
+                  ? source
+                  : `https://${source}`;
+                return (
+                  <li key={index} className="source-item">
+                    <a href={url} target="_blank" rel="noopener noreferrer">{source}</a>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+
+        {/* Render followups if they exist */}
+        {message.followups && message.followups.length > 0 && (
+          <div className="followups-section">
+            <p className="followups-title">You might also want to ask:</p>
+            <ul className="followups-list">
+              {message.followups.map((item, index) => (
+                <li key={index} className="followup-item">{item}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </>
+    );
   };
 
   return (
@@ -125,7 +190,7 @@ function App() {
                 : "message-bubble bot-bubble"
             }
           >
-            {msg.text}
+            {renderMessageContent(msg)}
           </div>
         ))}
       </div>
