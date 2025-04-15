@@ -1,105 +1,127 @@
-import { useState } from "react";
+import React, { useState } from "react";
+import "./App.css";
 
 function App() {
+  // State to store the user’s job title
   const [jobTitle, setJobTitle] = useState("");
-  const [inputJobTitle, setInputJobTitle] = useState("");
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  // Whether we've already asked & saved the job title
+  const [isJobTitleSet, setIsJobTitleSet] = useState(false);
 
-  const startChat = () => {
-    if (inputJobTitle.trim()) {
-      setJobTitle(inputJobTitle.trim());
+  // The conversation messages displayed in the UI
+  const [messages, setMessages] = useState([
+    {
+      sender: "bot",
+      text: "Hello! I'd like to know your job title before we continue. Enter your just your job title below."
     }
-  };
+  ]);
 
-  const sendMessage = async () => {
-    if (!input.trim()) return;
+  // The user’s current text input
+  const [inputValue, setInputValue] = useState("");
 
-    const userMessage = { role: "user", text: input };
+  // Send a message (either capture job title or do normal chat)
+  const handleSendMessage = async () => {
+    if (!inputValue.trim()) return; // Don’t send empty messages
+
+    // Add user’s message to our local state
+    const userMessage = { sender: "user", text: inputValue };
     setMessages((prev) => [...prev, userMessage]);
-    setInput("");
-    setIsLoading(true);
+    const userText = inputValue.trim();
+    setInputValue("");
 
-    try {
-      // ✅ Simulated response for local testing
-      await new Promise((res) => setTimeout(res, 500)); // fake delay
+    // If job title not yet set, then treat the user’s message as the job title
+    if (!isJobTitleSet) {
+      setJobTitle(userText);
+      setIsJobTitleSet(true);
 
-      const botMessage = {
-        role: "bot",
-        text: `This is a test response to "${input}" from the AI (job title: ${jobTitle}).`,
+      // Bot confirms success
+      const successMsg = {
+        sender: "bot",
+        text: `Thanks! Your job title is set to "${userText}". How can I help you next?`
       };
+      setMessages((prev) => [...prev, successMsg]);
+      return;
+    }
 
-      setMessages((prev) => [...prev, botMessage]);
+    // If job title is already set, we proceed with normal chat logic
+    try {
+      // Example: call your backend with user’s message + jobTitle
+      const response = await fetch("/api/v1/chat/stream", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          // Replace with your real API key if needed
+          "X-API-KEY": "YOUR_API_KEY_HERE"
+        },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: "user",
+              content: userText
+            }
+          ],
+          context: {
+            job_title: jobTitle
+          },
+          sessionState: null
+        })
+      });
+
+      const data = await response.json();
+
+      // Suppose the bot's reply is in data.messages[0].content (adjust as needed)
+      const botReply =
+        data.messages && data.messages.length > 0
+          ? data.messages[0].content
+          : "No bot reply found.";
+
+      setMessages((prev) => [...prev, { sender: "bot", text: botReply }]);
     } catch (err) {
-      console.error("Mock error:", err);
+      console.error("Error fetching bot response:", err);
       setMessages((prev) => [
         ...prev,
-        { role: "bot", text: "❌ Something went wrong." },
+        { sender: "bot", text: "Error: Could not fetch response from the server." }
       ]);
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  if (!jobTitle) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
-        <div className="bg-white shadow-lg p-6 rounded-md w-full max-w-md text-center">
-          <h2 className="text-xl font-semibold mb-2">Welcome</h2>
-          <p className="mb-4">Enter your job title to begin:</p>
-          <input
-            className="w-full border rounded p-2 mb-3"
-            placeholder="e.g. Marketing Manager"
-            value={inputJobTitle}
-            onChange={(e) => setInputJobTitle(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && startChat()}
-          />
-          <button
-            onClick={startChat}
-            className="w-full bg-green-600 text-white rounded p-2"
-          >
-            Start Chat
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // Send on pressing "Enter"
+  const handleKeyPress = (e) => {
+    if (e.key === "Enter") {
+      handleSendMessage();
+    }
+  };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-100 items-center p-4">
-      <div className="w-full max-w-xl bg-white shadow-md rounded p-4 mb-4 flex-1 overflow-y-auto">
+    <div className="chat-wrapper">
+      {/* Header (Optional) */}
+      <div className="chat-header">
+        <div className="header-star">&#x2605;</div>
+      </div>
+
+      {/* Chat messages */}
+      <div className="chat-messages">
         {messages.map((msg, idx) => (
           <div
             key={idx}
-            className={`my-2 p-2 rounded max-w-[80%] ${
-              msg.role === "user"
-                ? "bg-green-100 self-end ml-auto"
-                : "bg-gray-200 self-start mr-auto"
+            className={`message-bubble ${
+              msg.sender === "user" ? "user-bubble" : "bot-bubble"
             }`}
           >
             {msg.text}
           </div>
         ))}
-        {isLoading && (
-          <div className="text-sm text-gray-500 mt-2">Bot is typing...</div>
-        )}
       </div>
 
-      <div className="w-full max-w-xl flex gap-2">
+      {/* Input bar */}
+      <div className="chat-input">
         <input
-          className="flex-1 border p-2 rounded"
-          placeholder="Type your message..."
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+          type="text"
+          placeholder="Type a message..."
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyPress={handleKeyPress}
         />
-        <button
-          onClick={sendMessage}
-          className="bg-green-600 text-white px-4 py-2 rounded"
-        >
-          Send
-        </button>
+        <button onClick={handleSendMessage}>Send</button>
       </div>
     </div>
   );
