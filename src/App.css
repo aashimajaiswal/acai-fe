@@ -13,7 +13,7 @@
 /* Header with background image for AI Connect Logo */
 .chat-header {
   height: 120px; /* Adjust as needed for your logo's best visibility */
-  background-color: #0b3c2f; /* fallback color */
+  background-color: #205527; /* fallback color */
   
   /* The main: reference your actual logo file name */
   background-image: url("./assets/AI Connect Logo.png");
@@ -47,7 +47,7 @@
 }
 
 .user-bubble {
-  background-color: #0b3c2f;
+  background-color: #205527;
   color: #fff;
   margin-left: auto;
   margin-right: 0;
@@ -69,7 +69,7 @@
 
 /* Send button with arrow icon, bigger for clarity */
 .send-button {
-  background-color: #0b3c2f;
+  background-color: #205527;
   border: none;
   cursor: pointer;
   width: 60px;
