@@ -22,7 +22,7 @@
 
 /* Header at top (optional) */
 .chat-header {
-  background-color: #0b3c2f; /* Dark green */
+  background-color: #205527; /* Dark green */
   height: 60px;
   flex-shrink: 0;
   display: flex;
@@ -60,7 +60,7 @@
 }
 
 .user-bubble {
-  background-color: #0b3c2f;
+  background-color: #205527;
   color: #fff;
   margin-left: auto;
   margin-right: 0;
@@ -81,7 +81,7 @@
 }
 
 .chat-input button {
-  background-color: #0b3c2f;
+  background-color: #205527;
   color: #fff;
   border: none;
   padding: 12px 20px;
