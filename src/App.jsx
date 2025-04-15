@@ -1,66 +1,70 @@
 import React, { useState } from "react";
 import "./App.css";
 
+// Import the arrow icon for the send button
+import arrowIcon from "./assets/arrow.png";
+
 function App() {
-  // State to store the user’s job title
+  // Whether we’ve set the job title yet
   const [jobTitle, setJobTitle] = useState("");
-  // Whether we've already asked & saved the job title
   const [isJobTitleSet, setIsJobTitleSet] = useState(false);
 
-  // The conversation messages displayed in the UI
+  // Chat messages
   const [messages, setMessages] = useState([
     {
       sender: "bot",
-      text: "Hello! I'd like to know your job title before we continue. Enter your just your job title below."
+      text: "Hello! I'd like to know your job title before we continue. Please type it below."
     }
   ]);
 
-  // The user’s current text input
+  // Current input text
   const [inputValue, setInputValue] = useState("");
 
-  // Send a message (either capture job title or do normal chat)
+  // Send logic
   const handleSendMessage = async () => {
-    if (!inputValue.trim()) return; // Don’t send empty messages
+    if (!inputValue.trim()) return;
 
-    // Add user’s message to our local state
-    const userMessage = { sender: "user", text: inputValue };
-    setMessages((prev) => [...prev, userMessage]);
     const userText = inputValue.trim();
+
+    // 1) Display user's message
+    setMessages((prev) => [...prev, { sender: "user", text: userText }]);
     setInputValue("");
 
-    // If job title not yet set, then treat the user’s message as the job title
+    // 2) If job title not yet set, treat this message as the job title
     if (!isJobTitleSet) {
       setJobTitle(userText);
       setIsJobTitleSet(true);
 
       // Bot confirms success
-      const successMsg = {
-        sender: "bot",
-        text: `Thanks! Your job title is set to "${userText}". How can I help you next?`
-      };
-      setMessages((prev) => [...prev, successMsg]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          sender: "bot",
+          text: `Great! Your job title is now set to "${userText}". How can I help you next?`
+        }
+      ]);
       return;
     }
 
-    // If job title is already set, we proceed with normal chat logic
+    // 3) Otherwise, we have a job title, do a normal chat request
     try {
-      // Example: call your backend with user’s message + jobTitle
-      const response = await fetch("/api/v1/chat/stream", {
+      const response = await fetch("/api/v1/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          // Replace with your real API key if needed
+          // Replace with your real API key, if needed
           "X-API-KEY": "YOUR_API_KEY_HERE"
         },
         body: JSON.stringify({
           messages: [
             {
-              role: "user",
-              content: userText
+              content: userText,
+              role: "user"
             }
           ],
           context: {
             job_title: jobTitle
+            // overrides: { retrieval_mode: "hybrid", semantic_ranker: "True" } // optional
           },
           sessionState: null
         })
@@ -68,23 +72,37 @@ function App() {
 
       const data = await response.json();
 
-      // Suppose the bot's reply is in data.messages[0].content (adjust as needed)
-      const botReply =
-        data.messages && data.messages.length > 0
-          ? data.messages[0].content
-          : "No bot reply found.";
+      // The backend might return { followups, message, role, sources, session_state }
+      const mainAnswer = data.message || "(No main message)";
+      const followups = Array.isArray(data.followups)
+        ? data.followups.join(" | ")
+        : "";
+      const sources = Array.isArray(data.sources) ? data.sources.join(", ") : "";
 
-      setMessages((prev) => [...prev, { sender: "bot", text: botReply }]);
-    } catch (err) {
-      console.error("Error fetching bot response:", err);
+      // Combine them into one text bubble for demo
+      let combinedReply = mainAnswer;
+      if (sources) {
+        combinedReply += `\n\nSources: ${sources}`;
+      }
+      if (followups) {
+        combinedReply += `\n\nFollowups: ${followups}`;
+      }
+
+      // Display bot's answer
       setMessages((prev) => [
         ...prev,
-        { sender: "bot", text: "Error: Could not fetch response from the server." }
+        { sender: "bot", text: combinedReply }
+      ]);
+    } catch (error) {
+      console.error("Error: ", error);
+      setMessages((prev) => [
+        ...prev,
+        { sender: "bot", text: "Error: Could not fetch response." }
       ]);
     }
   };
 
-  // Send on pressing "Enter"
+  // Send on Enter
   const handleKeyPress = (e) => {
     if (e.key === "Enter") {
       handleSendMessage();
@@ -93,35 +111,37 @@ function App() {
 
   return (
     <div className="chat-wrapper">
-      {/* Header (Optional) */}
-      <div className="chat-header">
-        <div className="header-star">&#x2605;</div>
-      </div>
+      {/* Header uses a background image in CSS (see App.css) */}
+      <div className="chat-header"></div>
 
-      {/* Chat messages */}
+      {/* Messages */}
       <div className="chat-messages">
         {messages.map((msg, idx) => (
           <div
             key={idx}
-            className={`message-bubble ${
-              msg.sender === "user" ? "user-bubble" : "bot-bubble"
-            }`}
+            className={
+              msg.sender === "user"
+                ? "message-bubble user-bubble"
+                : "message-bubble bot-bubble"
+            }
           >
             {msg.text}
           </div>
         ))}
       </div>
 
-      {/* Input bar */}
+      {/* Input bar with arrow icon */}
       <div className="chat-input">
         <input
           type="text"
-          placeholder="Type a message..."
+          placeholder="Type your message..."
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyPress={handleKeyPress}
         />
-        <button onClick={handleSendMessage}>Send</button>
+        <button onClick={handleSendMessage} className="send-button">
+          <img src={arrowIcon} alt="Send" className="send-icon" />
+        </button>
       </div>
     </div>
   );
